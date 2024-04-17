@@ -19,6 +19,10 @@ global.tokens = {
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
+app.get('/', (req, res) => {
+    res.redirect("https://github.com/aboutdavid/oauth.hackclub.app")
+})
+
 app.get('/oauth2/authorize', (req, res) => {
     const { client_id, response_type, state, scope } = req.query
     if (response_type && response_type !== "code") return res.send("Only the code response type is supported.").status(400)
