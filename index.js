@@ -20,7 +20,7 @@ global.tokens = {
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
-    res.redirect("https://github.com/aboutdavid/oauth.hackclub.app")
+    res.sendFile(`${__dirname}/views/index.html`)
 })
 
 app.get('/oauth2/authorize', (req, res) => {
@@ -53,7 +53,12 @@ app.post('/oauth2/validate', (req, res) => {
 })
 
 app.post('/oauth2/token', (req, res) => {
-    const { token, client_id, client_secret } = req.body
+    const { client_id, client_secret } = req.body
+    var token = ""
+    if (req.body.token) token = req.body.token
+    else if (req.body.code) token = req.body.code
+    else return res.send("Token not found").status(400)
+
     console.log(req.body)
     const app = config.applications[client_id]
     if (!app) return res.send("Application not found").status(400)

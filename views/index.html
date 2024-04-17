@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+
+  <body>
+    <h1>Login with Nest</h1>
+    <p>A rootless, non-privileged OAuth2 system for <a href="https://github.com/hackclub/nest">Nest</a> users.</p>
+    <h2>Examples & projects using this</h2>
+    <ul>
+        <li><a href="https://oauth.hackclub.app/oauth2/authorize?client_id=66b8b68d1d3a4e18b8c2fbc8bc5b96d3&state=example">Example 1: Uses Oauth2 Debugger</a></li>
+    </ul>
+    <h2>Use this in your app</h2>
+    <p>Contact aboutdavid [a​t] protonmail [d​o​t] com (email) OR @david:david.com.se (matrix) OR <a href="https://hackclub.slack.com/team/U04CBLNSVH6">message me on slack</a> to get a client ID and client secret.</p>
+    <h2>OpenID Connect Discovery Document</h2>
+    <pre><code>https://oauth.hackclub.app/.well-known/openid-configuration</code></pre>
+   <h2>Oauth2 Login</h2>
+   <h3>Step 1: Authorize</h3>
+   <p>Redirect your user to:</p>
+   <pre><code>https://oauth.hackclub.app/oauth/authorize?client_id={clientID}&scopes={comma seperate lists of scopes}&state={random string of letters}</code></pre>
+   <p>You do not need to specify a redirect URI at this time. It has already been saved. You may also pass a state, and you may also specify scopes. Allowed scopes are: openid (does not change anything), profile (does not change anything), email (provides username@hackclub.app)</p>
+   <p>After that, you'll be redirected to the callback URI with a "code" param and a "state" param (which you passed if you gave one). Check and make sure the state param is the same. If not, the request has either been malformed or could be forged.</p>
+   <h3>Step 2: Exchange for a token</h3>
+   <p>On the backend, you should make a request to:</p>
+   <pre><code>POST https://oauth.hackclub.app/oauth/authorize?client_id={clientID}&client_secret={clientSecret}&code={code you were given on redirect}</code></pre>
+   <p>You'll get something like this:</p>
+   <pre><code>{
+    "access_token": "f25357a97ded",
+    "refresh_token": "54a598d65915",
+    "token_type": "Bearer",
+    "expires": 60
+}</code></pre>
+<h3>Step 3: Get user data</h3>
+<pre><code>Get https://oauth.hackclub.app/oauth/profile</code></pre>
+<p>Note: Set your "Authorization" header to "Bearer <code>access_token</code>". You'll get something like this:</p>
+<pre><code>{
+    "username": "david",
+    "id": "2026",
+    "email": "david [a​t] hackclub [d​o​t] app"
+}</code></pre>
+<p>The email will be formatted properly, it's only formatted like this on this web page to prevent bad web bots scraping.</p>
+   
+  </body>
+</html>
