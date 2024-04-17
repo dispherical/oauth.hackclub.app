@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+
+  <body>
+    <h1>Login with Nest</h1>
+    <p>they wouldn't let me use authentik so i made my own thing damnit</p>
+
+    <h2>Contuine to login with {{ name }} ?</h2>
+    <p>They'll be able to:</p>
+    <ul>
+      <li>View your username</li>
+    </ul>
+    <p>{{ developer.name }} provided this description: {{ description }}</p>
+    <h2>Details about the developer:</h2>
+    <p>
+      The developer, <b>{{ developer.name }}</b>, has an account on nest with
+      the username <b>{{ developer.account }}</b>.
+      <a href="{{ developer.website }}">Visit their website</a>.
+    </p>
+    <h2>Authorize</h2>
+    <p>
+      To authorize, you must provide your Nest credentials below. It will be
+      checked against PAM.
+    </p>
+    <label for="username">Username</label>
+    <form action="/oauth2/validate" method="POST">
+        <input
+      type="username"
+      name="username"
+      id="username"
+      placeholder="username"
+      required="true"
+    />
+    <label for="password">Password</label>
+    <input
+      type="password"
+      name="password"
+      id="password"
+      placeholder="●●●●●●●●●●"
+      required="true"
+    />
+    <input
+      type="hidden"
+      name="state"
+      id="state"
+      placeholder=""
+      value="{{ state }}"
+      hidden="true"
+    />
+    <input
+      type="hidden"
+      name="redirect_uri"
+      id="redirect_uri"
+      placeholder=""
+      value="{{ redirectURI }}"
+      hidden="true"
+    />
+    <input
+      type="hidden"
+      name="client_id"
+      id="client_id"
+      placeholder=""
+      value="{{ client_id }}"
+      hidden="true"
+    />
+    <button type="submit">Authorize</button>
+    </form>
+   
+
+   
+  </body>
+</html>
