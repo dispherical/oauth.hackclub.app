@@ -39,9 +39,14 @@
 <pre><code>Get https://oauth.hackclub.app/oauth2/profile</code></pre>
 <p>Note: Set your "Authorization" header to "Bearer <code>access_token</code>". You'll get something like this:</p>
 <pre><code>{
-    "username": "david",
-    "id": "2026",
-    "email": "david [a​t] hackclub [d​o​t] app"
+  "username": "david",
+  "email": "david [a​t] hackclub [d​o​t] app"",
+  "id": "2026",
+  "groups": [
+      "nest-users",
+      "admins",
+      "dn42mnt"
+  ]
 }</code></pre>
 <p>The email will be formatted properly, it's only formatted like this on this web page to prevent bad web bots scraping.</p>
    

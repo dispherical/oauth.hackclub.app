@@ -3,6 +3,7 @@ const nunjucks = require("nunjucks")
 const bodyParser = require('body-parser');
 const fs = require("fs")
 const config = require("./config.js")
+const child = require("node:child_process")
 const app = express()
 const port = 3000
 const pam = require('authenticate-pam');
@@ -41,9 +42,11 @@ app.post('/oauth2/validate', (req, res) => {
         if (error) return res.send("Wrong credentials").status(401)
         else {
             const code = Math.random().toString(32).slice(2)
+            const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
+            const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
             console.log(global.tokens)
             global.tokens[code] = {
-                username, client_id, email: `${username}@hackclub.app`
+                username, client_id, email: `${username}@hackclub.app`, id, groups
             }
             return res.redirect(`${redirect_uri}?${new URLSearchParams({
                 state, code
