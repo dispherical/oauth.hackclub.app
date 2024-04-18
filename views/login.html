@@ -15,13 +15,16 @@
     <ul>
       <li>View your username</li>
     </ul>
-    <p>{{ developer.name }} provided this description: {{ description }}</p>
+    <p>
+      <b>{{ developer.name }}</b> provided this description: {{ description }}
+    </p>
     <h2>Details about the developer:</h2>
     <p>
       The developer, <b>{{ developer.name }}</b>, has an account on nest with
       the username <b>{{ developer.account }}</b>.
       <a href="{{ developer.website }}">Visit their website</a>.
     </p>
+    <p>{% if privacyPolicy %}The developer has also provided a privacy policy. <a href="{{ privacyPolicy }}">You may view it here.</a>{% endif %}</p>
     <h2>Authorize</h2>
     <p>
       To authorize, you must provide your Nest credentials below. It will be
@@ -29,49 +32,46 @@
     </p>
     <label for="username">Username</label>
     <form action="/oauth2/validate" method="POST">
-        <input
-      type="username"
-      name="username"
-      id="username"
-      placeholder="username"
-      required="true"
-    />
-    <label for="password">Password</label>
-    <input
-      type="password"
-      name="password"
-      id="password"
-      placeholder="●●●●●●●●●●"
-      required="true"
-    />
-    <input
-      type="hidden"
-      name="state"
-      id="state"
-      placeholder=""
-      value="{{ state }}"
-      hidden="true"
-    />
-    <input
-      type="hidden"
-      name="redirect_uri"
-      id="redirect_uri"
-      placeholder=""
-      value="{{ redirectURI }}"
-      hidden="true"
-    />
-    <input
-      type="hidden"
-      name="client_id"
-      id="client_id"
-      placeholder=""
-      value="{{ client_id }}"
-      hidden="true"
-    />
-    <button type="submit">Authorize</button>
+      <input
+        type="username"
+        name="username"
+        id="username"
+        placeholder="username"
+        required="true"
+      />
+      <label for="password">Password</label>
+      <input
+        type="password"
+        name="password"
+        id="password"
+        placeholder="●●●●●●●●●●"
+        required="true"
+      />
+      <input
+        type="hidden"
+        name="state"
+        id="state"
+        placeholder=""
+        value="{{ state }}"
+        hidden="true"
+      />
+      <input
+        type="hidden"
+        name="redirect_uri"
+        id="redirect_uri"
+        placeholder=""
+        value="{{ redirectURI }}"
+        hidden="true"
+      />
+      <input
+        type="hidden"
+        name="client_id"
+        id="client_id"
+        placeholder=""
+        value="{{ client_id }}"
+        hidden="true"
+      />
+      <button type="submit">Authorize</button>
     </form>
-   
-
-   
   </body>
 </html>
