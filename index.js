@@ -24,20 +24,43 @@ app.get('/', (req, res) => {
     res.sendFile(`${__dirname}/views/index.html`)
 })
 
-app.get('/oauth2/authorize', (req, res) => {
-    const { client_id, response_type, state, scope } = req.query
+app.get('/oauth2/authorize', (req, res, next) => {
+    var { client_id, response_type, state, scope } = req.query
+    var end
+    if (!scope) scope = "openid profile"
+    const scopes = scope.split(" ")
+    if (!scopes.includes("profile")) scopes.push("profile")
     if (response_type && response_type !== "code") return res.send("Only the code response type is supported.").status(400)
     const app = config.applications[client_id]
+    scopes.forEach(scope => {
+        if (!app.scopes.includes(scope)) {
+            res.send(`Scope not approved: ${scope}`)
+            end = true
+        }
+    })
+    if (end) return
     if (!app) return res.send("Application not found").status(400)
+    console.log(scopes)
     res.render("login.html", {
-        ...app, state, client_id
+        ...app, state, client_id, scopes, scope
     })
 })
 
 
 app.post('/oauth2/validate', (req, res) => {
-    const { username, password, redirect_uri, state, client_id } = req.body
-
+    var { username, password, redirect_uri, state, client_id, scope } = req.body
+    if (!scope) scope = "openid profile"
+    const scopes = scope.split(" ")
+    if (!scopes.includes("profile")) scopes.push("profile")
+var end
+    const app = config.applications[client_id]
+    scopes.forEach(scope => {
+        if (!app.scopes.includes(scope)) {
+            res.send(`Scope not approved: ${scope}`)
+            end = true
+        }
+    })
+    if (end) return
     pam.authenticate(username, password, function (error) {
         if (error) return res.send("Wrong credentials").status(401)
         else {
@@ -46,7 +69,13 @@ app.post('/oauth2/validate', (req, res) => {
             const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
             console.log(global.tokens)
             global.tokens[code] = {
-                username, client_id, email: `${username}@hackclub.app`, id, groups
+                username, client_id, id, groups
+            }
+            if (scopes.includes("email")) {
+                const email = child.execSync(`ldapsearch -H ${config.ldap.hostname} -b dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -D cn=ldap-service,ou=users,dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -w '${config.ldap.password}' -LLL -o ldif-wrap=no '(cn=david)' 'mail' | grep mail: | cut -d' ' -f2`).toString()
+                global.tokens[code].email = email
+            } else {
+                global.tokens[code].email = `${username}@hackclub.app`
             }
             return res.redirect(`${redirect_uri}?${new URLSearchParams({
                 state, code

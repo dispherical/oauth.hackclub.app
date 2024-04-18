@@ -25,6 +25,12 @@
    <pre><code>https://oauth.hackclub.app/oauth2/authorize?client_id={clientID}&scopes={comma seperate lists of scopes}&state={random string of letters}</code></pre>
    <p>You do not need to specify a redirect URI at this time. It has already been saved. You may also pass a state, and you may also specify scopes. Allowed scopes are: openid (does not change anything), profile (does not change anything), email (provides username@hackclub.app)</p>
    <p>After that, you'll be redirected to the callback URI with a "code" param and a "state" param (which you passed if you gave one). Check and make sure the state param is the same. If not, the request has either been malformed or could be forged.</p>
+   <p>Supported Scopes:</p>
+   <ul>
+    <li>openid: does nothing</li>
+    <li>profile: does nothing</li>
+    <li>email: Gets the user's real email (without it, the email field will be "user@hackclub.app"). This is a protected scope and you'll need to state why you need it.</li>
+   </ul>
    <h3>Step 2: Exchange for a token</h3>
    <p>On the backend, you should make a request to:</p>
    <pre><code>POST https://oauth.hackclub.app/oauth2/authorize?client_id={clientID}&client_secret={clientSecret}&code={code you were given on redirect}</code></pre>
@@ -48,7 +54,7 @@
       "dn42mnt"
   ]
 }</code></pre>
-<p>The email will be formatted properly, it's only formatted like this on this web page to prevent bad web bots scraping.</p>
+<p>The email will be formatted properly, it's only formatted like this on this web page to prevent spamming botnets. If you request the email scope, it will be the user's real email.</p>
    
   </body>
 </html>

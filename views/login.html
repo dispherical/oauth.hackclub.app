@@ -13,7 +13,11 @@
     <h2>Contuine to login with {{ name }}?</h2>
     <p>They'll be able to:</p>
     <ul>
-      <li>View your username</li>
+      {% for scope in scopes %}
+      {% if scope == "profile" %}<li>View your username, user ID, and the groups you are in</li>{% endif %}
+      {% if scope == "email" %}<li>View your real, non-hackclub.app email</li>{% endif %}
+      {% endfor %}
+
     </ul>
     <p>
       <b>{{ developer.name }}</b> provided this description: {{ description }}
@@ -69,6 +73,14 @@
         id="client_id"
         placeholder=""
         value="{{ client_id }}"
+        hidden="true"
+      />
+      <input
+        type="hidden"
+        name="scope"
+        id="scope"
+        placeholder=""
+        value="{{ scope }}"
         hidden="true"
       />
       <br>
