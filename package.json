@@ -5,8 +5,10 @@
   "license": "MIT",
   "dependencies": {
     "authenticate-pam": "^1.0.5",
+    "better-sqlite3": "^9.5.0",
     "body-parser": "^1.20.2",
     "express": "^4.19.2",
-    "nunjucks": "^3.2.4"
+    "nunjucks": "^3.2.4",
+    "quick.db": "^9.1.7"
   }
 }

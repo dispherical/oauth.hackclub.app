@@ -1,9 +1,11 @@
 const express = require('express')
 const nunjucks = require("nunjucks")
 const bodyParser = require('body-parser');
-const fs = require("fs")
 const config = require("./config.js")
-const child = require("node:child_process")
+const crypto = require("crypto");
+const child = require("node:child_process");
+const { QuickDB } = require("quick.db");
+const db = new QuickDB();
 const app = express()
 const port = 3000
 const pam = require('authenticate-pam');
@@ -13,10 +15,6 @@ nunjucks.configure('views', {
     express: app,
     noCache: true
 });
-
-global.tokens = {
-
-}
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -52,7 +50,7 @@ app.post('/oauth2/validate', (req, res) => {
     if (!scope) scope = "openid profile"
     const scopes = scope.split(" ")
     if (!scopes.includes("profile")) scopes.push("profile")
-var end
+    var end
     const app = config.applications[client_id]
     scopes.forEach(scope => {
         if (!app.scopes.includes(scope)) {
@@ -61,22 +59,23 @@ var end
         }
     })
     if (end) return
-    pam.authenticate(username, password, function (error) {
+    pam.authenticate(username, password, async function (error) {
         if (error) return res.send("Wrong credentials").status(401)
         else {
-            const code = Math.random().toString(32).slice(2)
+            const code = crypto.randomUUID().replaceAll("-", "")
             const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
             const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
-            console.log(global.tokens)
-            global.tokens[code] = {
-                username, client_id, id, groups
-            }
+            var emaila
             if (scopes.includes("email")) {
                 const email = child.execSync(`ldapsearch -H ${config.ldap.hostname} -b dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -D cn=ldap-service,ou=users,dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -w '${config.ldap.password}' -LLL -o ldif-wrap=no '(cn=david)' 'mail' | grep mail: | cut -d' ' -f2`).toString()
-                global.tokens[code].email = email
+                emaila = email
             } else {
-                global.tokens[code].email = `${username}@hackclub.app`
+                emaila = `${username}@hackclub.app`
             }
+
+            await db.set(`tokens.${code}`, {
+                username, client_id, id, groups, email: emaila
+            })
             return res.redirect(`${redirect_uri}?${new URLSearchParams({
                 state, code
             })}`)
@@ -84,7 +83,7 @@ var end
     });
 })
 
-app.post('/oauth2/token', (req, res) => {
+app.post('/oauth2/token', async (req, res) => {
     const { client_id, client_secret } = req.body
     var token = ""
     if (req.body.token) token = req.body.token
@@ -96,8 +95,8 @@ app.post('/oauth2/token', (req, res) => {
     if (!app) return res.send("Application not found").status(400)
 
     if (client_secret != app.clientSecret) return res.send("Incorrect client secret").status(401)
-    console.log(global.tokens)
-    if (!global.tokens[token] || !global.tokens[token].client_id == client_id) return res.send("Token not found").status(400)
+    
+    if (!await db.has(`tokens.${token}`) || await db.get(`tokens.${token}`).client_id != client_id) return res.send("Token not found").status(400)
 
     res.json({
         access_token: token,
@@ -107,11 +106,12 @@ app.post('/oauth2/token', (req, res) => {
     })
 })
 
-app.get('/oauth2/profile', (req, res) => {
+app.get('/oauth2/profile', async (req, res) => {
     const auth = req.headers.authorization
     if (!auth.includes("Bearer ")) return res.send("Not bearer authorization.").status(400)
-    const profile = global.tokens[auth.replace("Bearer ", "")]
+    const profile = await db.get(`tokens.${auth.replace("Bearer ", "")}`)
     if (!profile) return res.send("Token expired or non-existant").status(401)
+    delete profile.client_id
     res.json(profile)
 })
 
