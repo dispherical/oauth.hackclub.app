@@ -74,7 +74,7 @@ app.post('/oauth2/validate', (req, res) => {
             }
 
             await db.set(`tokens.${code}`, {
-                username, client_id, id, groups, email: emaila
+                username, client_id, id, groups, email: emaila, expires: new Date(new Date().setMinutes(new Date().getMinutes() + 5)).toISOString()
             })
             return res.redirect(`${redirect_uri}?${new URLSearchParams({
                 state, code
@@ -96,7 +96,7 @@ app.post('/oauth2/token', async (req, res) => {
 
     if (client_secret != app.clientSecret) return res.send("Incorrect client secret").status(401)
     
-    if (!await db.has(`tokens.${token}`) || await db.get(`tokens.${token}`).client_id != client_id) return res.send("Token not found").status(400)
+    if (!await db.has(`tokens.${token}`) || await db.get(`tokens.${token}`).client_id != client_id || new Date() > await db.get(`tokens.${token}`).expires) return res.send("Token not found").status(400)
 
     res.json({
         access_token: token,
