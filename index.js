@@ -78,7 +78,6 @@ app.post('/oauth2/validate', async (req, res) => {
         try {
             groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
         } catch (e) {
-            e.stderr.toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
         };
         var emaila
         if (scopes.includes("email")) {
@@ -104,7 +103,6 @@ app.post('/oauth2/validate', async (req, res) => {
                 try {
                     groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
                 } catch (e) {
-                    e.stderr.toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
                 }
                 var emaila
                 if (scopes.includes("email")) {
