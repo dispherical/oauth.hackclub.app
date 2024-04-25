@@ -4,9 +4,11 @@ const bodyParser = require('body-parser');
 const config = require("./config.js")
 const crypto = require("crypto");
 const child = require("node:child_process");
+const fs = require("node:fs")
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
 const app = express()
+const ln = express()
 const port = 3000
 const pam = require('authenticate-pam');
 
@@ -20,6 +22,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
     res.sendFile(`${__dirname}/views/index.html`)
+})
+
+ln.get('/authorize/:username', async (req, res) => {
+    const { username } = req.params
+    const authCode = crypto.randomUUID().replaceAll("-", "")
+    db.set(`local.${authCode}`, username)
+    res.send(`Your Oauth2 verification code is ${authCode}\n`)
 })
 
 app.get('/oauth2/authorize', (req, res, next) => {
@@ -45,8 +54,8 @@ app.get('/oauth2/authorize', (req, res, next) => {
 })
 
 
-app.post('/oauth2/validate', (req, res) => {
-    var { username, password, redirect_uri, state, client_id, scope } = req.body
+app.post('/oauth2/validate', async (req, res) => {
+    var { username, password, auth_code, redirect_uri, state, client_id, scope } = req.body
     if (!scope) scope = "openid profile"
     const scopes = scope.split(" ")
     if (!scopes.includes("profile")) scopes.push("profile")
@@ -59,28 +68,50 @@ app.post('/oauth2/validate', (req, res) => {
         }
     })
     if (end) return
-    pam.authenticate(username, password, async function (error) {
-        if (error) return res.send("Wrong credentials").status(401)
-        else {
-            const code = crypto.randomUUID().replaceAll("-", "")
-            const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
-            const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
-            var emaila
-            if (scopes.includes("email")) {
-                const email = child.execSync(`ldapsearch -H ${config.ldap.hostname} -b dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -D cn=ldap-service,ou=users,dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -w '${config.ldap.password}' -LLL -o ldif-wrap=no '(cn=david)' 'mail' | grep mail: | cut -d' ' -f2`).toString()
-                emaila = email
-            } else {
-                emaila = `${username}@hackclub.app`
-            }
-
-            await db.set(`tokens.${code}`, {
-                username, client_id, id, groups, email: emaila, expires: new Date(new Date().setMinutes(new Date().getMinutes() + 5)).toISOString()
-            })
-            return res.redirect(`${redirect_uri}?${new URLSearchParams({
-                state, code
-            })}`)
+    if (auth_code) {
+        const username = await db.get(`local.${auth_code}`)
+        console.log(username)
+        if (!username) return res.send("Wrong credentials").status(401)
+        const code = crypto.randomUUID().replaceAll("-", "")
+        const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
+        const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+        var emaila
+        if (scopes.includes("email")) {
+            const email = child.execSync(`ldapsearch -H ${config.ldap.hostname} -b dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -D cn=ldap-service,ou=users,dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -w '${config.ldap.password}' -LLL -o ldif-wrap=no '(cn=david)' 'mail' | grep mail: | cut -d' ' -f2`).toString()
+            emaila = email
+        } else {
+            emaila = `${username}@hackclub.app`
         }
-    });
+
+        await db.set(`tokens.${code}`, {
+            username, client_id, id, groups, email: emaila, expires: new Date(new Date().setMinutes(new Date().getMinutes() + 5)).toISOString()
+        })
+        return res.redirect(`${redirect_uri}?${new URLSearchParams({
+            state, code
+        })}`)
+    } else
+        pam.authenticate(username, password, async function (error) {
+            if (error) return res.send("Wrong credentials").status(401)
+            else {
+                const code = crypto.randomUUID().replaceAll("-", "")
+                const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
+                const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+                var emaila
+                if (scopes.includes("email")) {
+                    const email = child.execSync(`ldapsearch -H ${config.ldap.hostname} -b dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -D cn=ldap-service,ou=users,dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -w '${config.ldap.password}' -LLL -o ldif-wrap=no '(cn=david)' 'mail' | grep mail: | cut -d' ' -f2`).toString()
+                    emaila = email
+                } else {
+                    emaila = `${username}@hackclub.app`
+                }
+
+                await db.set(`tokens.${code}`, {
+                    username, client_id, id, groups, email: emaila, expires: new Date(new Date().setMinutes(new Date().getMinutes() + 5)).toISOString()
+                })
+                return res.redirect(`${redirect_uri}?${new URLSearchParams({
+                    state, code
+                })}`)
+            }
+        });
 })
 
 app.post('/oauth2/token', async (req, res) => {
@@ -95,7 +126,7 @@ app.post('/oauth2/token', async (req, res) => {
     if (!app) return res.send("Application not found").status(400)
 
     if (client_secret != app.clientSecret) return res.send("Incorrect client secret").status(401)
-    
+
     if (!await db.has(`tokens.${token}`) || await db.get(`tokens.${token}`).client_id != client_id || new Date() > await db.get(`tokens.${token}`).expires) return res.send("Token not found").status(400)
 
     res.json({
@@ -120,6 +151,9 @@ app.get('/.well-known/openid-configuration', (req, res) => {
 })
 
 app.listen(process.env.PORT || port, () => {
-    console.log(`Example app listening on port ${port}`)
+    console.log(`Nest OAuth listening on port ${process.env.PORT || port}`)
 })
-
+if (fs.existsSync("./.localauth.socket")) fs.rmSync("./.localauth.socket")
+ln.listen("./.localauth.socket", () => {
+    console.log(`Local auth ready.`)
+})

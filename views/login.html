@@ -41,7 +41,6 @@
         name="username"
         id="username"
         placeholder="username"
-        required="true"
       />
       <label for="password">Password</label>
       <input
@@ -49,7 +48,6 @@
         name="password"
         id="password"
         placeholder="●●●●●●●●●●"
-        required="true"
       />
       <input
         type="hidden"
@@ -82,6 +80,16 @@
         placeholder=""
         value="{{ scope }}"
         hidden="true"
+      />
+      <br>
+      <h2>Passwordless Authorization</h2>
+      <p>Use the command <code>oauth-keygen</code> on Nest to generate a key. Entering anything here will override username/password authentication</p>
+      <input
+        type="auth_code"
+        name="auth_code"
+        id="auth_code"
+        placeholder="●●●●●●●●●●"
+        required="true"
       />
       <br>
       <button type="submit">Authorize</button>
