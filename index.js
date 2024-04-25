@@ -141,7 +141,8 @@ app.post('/oauth2/token', async (req, res) => {
         access_token: token,
         refresh_token: token,
         token_type: "Bearer",
-        expires: 10
+        expires_in: 10,
+        scrope: "openid profile"
     })
 })
 
