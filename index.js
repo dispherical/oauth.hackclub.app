@@ -57,7 +57,7 @@ app.get('/oauth2/authorize', (req, res, next) => {
 app.post('/oauth2/validate', async (req, res) => {
     var { username, password, auth_code, redirect_uri, state, client_id, scope } = req.body
     if (!scope) scope = "openid profile"
-    const scopes = scope.split(" ")
+    const scopes = scope.replaceAll("+"," ").split(" ")
     if (!scopes.includes("profile")) scopes.push("profile")
     var end
     const app = config.applications[client_id]
