@@ -57,7 +57,7 @@ app.get('/oauth2/authorize', (req, res, next) => {
 app.post('/oauth2/validate', async (req, res) => {
     var { username, password, auth_code, redirect_uri, state, client_id, scope } = req.body
     if (!scope) scope = "openid profile"
-    const scopes = scope.replaceAll("+"," ").split(" ")
+    const scopes = scope.replaceAll("+", " ").split(" ")
     if (!scopes.includes("profile")) scopes.push("profile")
     var end
     const app = config.applications[client_id]
@@ -74,7 +74,12 @@ app.post('/oauth2/validate', async (req, res) => {
         if (!username) return res.send("Wrong credentials").status(401)
         const code = crypto.randomUUID().replaceAll("-", "")
         const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
-        const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+        var groups = ["nest-users"]
+        try {
+            groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+        } catch (e) {
+            e.stderr.toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+        };
         var emaila
         if (scopes.includes("email")) {
             const email = child.execSync(`ldapsearch -H ${config.ldap.hostname} -b dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -D cn=ldap-service,ou=users,dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -w '${config.ldap.password}' -LLL -o ldif-wrap=no '(cn=david)' 'mail' | grep mail: | cut -d' ' -f2`).toString()
@@ -95,7 +100,12 @@ app.post('/oauth2/validate', async (req, res) => {
             else {
                 const code = crypto.randomUUID().replaceAll("-", "")
                 const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
-                const groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+                var groups = ["nest-users"]
+                try {
+                    groups = child.execSync(`groups "${username}" 2>/dev/null`).toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+                } catch (e) {
+                    e.stderr.toString().split(" : ")[1].split(" ").map(group => group.replace("\n", "").toLowerCase())
+                }
                 var emaila
                 if (scopes.includes("email")) {
                     const email = child.execSync(`ldapsearch -H ${config.ldap.hostname} -b dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -D cn=ldap-service,ou=users,dc=ldap,dc=secure,dc=vm,dc=hackclub,dc=app -w '${config.ldap.password}' -LLL -o ldif-wrap=no '(cn=david)' 'mail' | grep mail: | cut -d' ' -f2`).toString()
