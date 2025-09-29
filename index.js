@@ -159,7 +159,7 @@ app.get('/.well-known/openid-configuration', (req, res) => {
     res.sendFile(`${__dirname}/openid.json`)
 })
 
-app.listen(process.env.PORT || port, () => {
+app.listen(process.env.PORT || config.port || port, () => {
     console.log(`Nest OAuth listening on port ${process.env.PORT || port}`)
 })
 if (fs.existsSync("./.localauth.socket")) fs.rmSync("./.localauth.socket")
