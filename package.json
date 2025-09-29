@@ -5,10 +5,13 @@
   "license": "MIT",
   "dependencies": {
     "authenticate-pam": "^1.0.5",
+    "axios": "^1.12.2",
     "better-sqlite3": "^9.5.0",
     "body-parser": "^1.20.2",
     "express": "^4.19.2",
+    "ldapjs": "^3.0.7",
     "nunjucks": "^3.2.4",
-    "quick.db": "^9.1.7"
+    "quick.db": "^9.1.7",
+    "ssh2": "^1.17.0"
   }
 }

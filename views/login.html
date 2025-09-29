@@ -4,8 +4,8 @@
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
-    />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
   </head>
 
   <body>
@@ -14,8 +14,12 @@
     <p>They'll be able to:</p>
     <ul>
       {% for scope in scopes %}
-      {% if scope == "profile" %}<li>View your username, user ID, and the groups you are in</li>{% endif %}
-      {% if scope == "email" %}<li>View your real, non-hackclub.app email</li>{% endif %}
+        {% if scope == "profile" %}
+          <li>View your username, user ID, and the groups you are in</li>
+        {% endif %}
+        {% if scope == "email" %}
+          <li>View your real, non-hackclub.app email</li>
+        {% endif %}
       {% endfor %}
 
     </ul>
@@ -28,27 +32,30 @@
       the username <b>{{ developer.account }}</b>.
       <a href="{{ developer.website }}">Visit their website</a>.
     </p>
-    <p>{% if privacyPolicy %}The developer has also provided a privacy policy. <a href="{{ privacyPolicy }}">You may view it here.</a>{% endif %}</p>
+    <p>
+      {% if privacyPolicy %}The developer has also provided a privacy policy. <a href="{{ privacyPolicy }}">You may view it here.</a>
+      {% endif %}
+    </p>
     <h2>Authorize</h2>
     <p>
       To authorize, you must provide your Nest credentials below. It will be
       checked against PAM.
     </p>
     <label for="username">Username</label>
-    <form action="/oauth2/validate" method="POST">
+    <form id="form" action="/oauth2/validate" method="POST">
       <input
         type="username"
         name="username"
         id="username"
         placeholder="username"
-      />
+/>
       <label for="password">Password</label>
       <input
         type="password"
         name="password"
         id="password"
         placeholder="●●●●●●●●●●"
-      />
+/>
       <input
         type="hidden"
         name="state"
@@ -56,7 +63,7 @@
         placeholder=""
         value="{{ state }}"
         hidden="true"
-      />
+/>
       <input
         type="hidden"
         name="redirect_uri"
@@ -64,7 +71,7 @@
         placeholder=""
         value="{{ redirectURI }}"
         hidden="true"
-      />
+/>
       <input
         type="hidden"
         name="client_id"
@@ -72,7 +79,7 @@
         placeholder=""
         value="{{ client_id }}"
         hidden="true"
-      />
+/>
       <input
         type="hidden"
         name="scope"
@@ -80,18 +87,45 @@
         placeholder=""
         value="{{ scope }}"
         hidden="true"
-      />
+/>
+      <button type="submit">Authorize</button>
+
       <br>
-      <h2>Passwordless Authorization</h2>
-      <p>Use the command <code>oauth-keygen</code> on Nest to generate a key. Entering anything here will override username/password authentication</p>
+      <h2>Or, you can use Passwordless Authorization</h2>
+      <p>
+        To verify your identity, connect via SSH to the provided port. After connecting, you will be automatically redirected.<br>
+        <b>Instructions:</b><br>
+        1. Copy the SSH command below and run it in your terminal.<br>
+        <code>ssh -o StrictHostKeyChecking=no hackclub.app -p {{ ssh_port }}</code><br>
+        2. Leave this page open. You will be redirected automatically once verified.<br>
+      </p>
       <input
-        type="auth_code"
+        type="hidden"
         name="auth_code"
         id="auth_code"
-        placeholder="●●●●●●●●●●"
-      />
-      <br>
-      <button type="submit">Authorize</button>
+        value="{{ auth_code }}"
+/>
+      <script>
+        function pollSSHStatus() {
+          const authCode = document
+            .getElementById('auth_code')
+            .value;
+          if (!authCode) 
+            return setTimeout(pollSSHStatus, 2000);
+          fetch('/oauth2/ssh-status/' + authCode)
+            .then(res => res.json())
+            .then(data => {
+              if (data.verified) {
+                document
+                  .getElementById('form')
+                  .submit();
+              } else {
+                setTimeout(pollSSHStatus, 2000);
+              }
+            });
+        }
+        pollSSHStatus();
+      </script>
     </form>
   </body>
 </html>
