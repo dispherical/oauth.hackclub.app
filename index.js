@@ -40,21 +40,23 @@ app.get('/', (req, res) => {
 })
 
 app.get('/oauth2/authorize', async (req, res, next) => {
-  var { client_id, response_type, state, scope } = req.query
+  var { client_id, response_type, state, scope, redirect_uri } = req.query
   var end
   if (!scope) scope = "openid profile"
   const scopes = scope.split(" ")
   if (!scopes.includes("profile")) scopes.push("profile")
-  if (response_type && response_type !== "code") return res.send("Only the code response type is supported.").status(400)
+  if (response_type && response_type !== "code") return res.status(400).json({ error: "unsupported_response_type", error_description: "Only the code response type is supported" })
   const appConfig = config.applications[client_id]
+  if (!appConfig) return res.status(400).json({ error: "invalid_client", error_description: "Application not found" })
+  if (!redirect_uri) return res.status(400).json({ error: "invalid_request", error_description: "Missing redirect_uri parameter" })
+  if (redirect_uri !== appConfig.redirectURI) return res.status(400).json({ error: "invalid_request", error_description: "Invalid redirect_uri" })
   scopes.forEach(scope => {
     if (!appConfig.scopes.includes(scope)) {
-      res.send(`Scope not approved: ${scope}`)
+      res.status(400).json({ error: "invalid_scope", error_description: `Scope not approved: ${scope}` })
       end = true
     }
   })
   if (end) return
-  if (!appConfig) return res.send("Application not found").status(400)
   console.log(scopes)
 
   const authCode = crypto.randomUUID().replaceAll("-", "")
@@ -137,7 +139,7 @@ app.get('/oauth2/authorize', async (req, res, next) => {
   });
 
   res.render("login.html", {
-    ...appConfig, state, client_id, scopes, scope, auth_code: authCode, ssh_port: sshPort
+    ...appConfig, state, client_id, scopes, scope, auth_code: authCode, ssh_port: sshPort, redirectURI: redirect_uri
   })
 })
 
@@ -148,9 +150,12 @@ app.post('/oauth2/validate', async (req, res) => {
   if (!scopes.includes("profile")) scopes.push("profile")
   var end
   const app = config.applications[client_id]
+  if (!app) return res.status(400).json({ error: "invalid_client", error_description: "Application not found" })
+  if (!redirect_uri) return res.status(400).json({ error: "invalid_request", error_description: "Missing redirect_uri parameter" })
+  if (redirect_uri !== app.redirectURI) return res.status(400).json({ error: "invalid_request", error_description: "Invalid redirect_uri" })
   scopes.forEach(scope => {
     if (!app.scopes.includes(scope)) {
-      res.send(`Scope not approved: ${scope}`)
+      res.status(400).json({ error: "invalid_scope", error_description: `Scope not approved: ${scope}` })
       end = true
     }
   })
@@ -158,7 +163,7 @@ app.post('/oauth2/validate', async (req, res) => {
   if (auth_code) {
     const sshInfo = sshServers[auth_code];
     if (!sshInfo || !sshInfo.verified) {
-      return res.send("SSH verification not completed. Please connect via SSH as instructed.").status(401)
+      return res.status(401).json({ error: "access_denied", error_description: "SSH verification not completed. Please connect via SSH as instructed." })
     }
     const username = sshInfo.username;
     const code = crypto.randomUUID().replaceAll("-", "")
@@ -187,7 +192,7 @@ app.post('/oauth2/validate', async (req, res) => {
     })}`)
   } else
     pam.authenticate(username, password, async function (error) {
-      if (error) return res.send("Wrong credentials").status(401)
+      if (error) return res.status(401).json({ error: "access_denied", error_description: "Invalid credentials" })
       else {
         const code = crypto.randomUUID().replaceAll("-", "")
         const id = child.execSync(`id -u "${username}"`).toString().replace("\n", "").toLowerCase()
@@ -215,35 +220,53 @@ app.post('/oauth2/validate', async (req, res) => {
 })
 
 app.post('/oauth2/token', async (req, res) => {
-  const { client_id, client_secret } = req.body
-  var token = ""
-  if (req.body.token) token = req.body.token
-  else if (req.body.code) token = req.body.code
-  else return res.send("Token not found").status(400)
+  const { client_id, client_secret, grant_type, code, redirect_uri } = req.body
+  
+  if (!grant_type) return res.status(400).json({ error: "invalid_request", error_description: "Missing grant_type parameter" })
+  if (grant_type !== "authorization_code") return res.status(400).json({ error: "unsupported_grant_type", error_description: "Only authorization_code grant type is supported" })
+  if (!code) return res.status(400).json({ error: "invalid_request", error_description: "Missing code parameter" })
+  if (!client_id) return res.status(400).json({ error: "invalid_request", error_description: "Missing client_id parameter" })
+  if (!client_secret) return res.status(400).json({ error: "invalid_request", error_description: "Missing client_secret parameter" })
+  if (!redirect_uri) return res.status(400).json({ error: "invalid_request", error_description: "Missing redirect_uri parameter" })
 
-  console.log(req.body)
   const app = config.applications[client_id]
-  if (!app) return res.send("Application not found").status(400)
+  if (!app) return res.status(400).json({ error: "invalid_client", error_description: "Application not found" })
+  if (client_secret !== app.clientSecret) return res.status(401).json({ error: "invalid_client", error_description: "Invalid client credentials" })
+  if (redirect_uri !== app.redirectURI) return res.status(400).json({ error: "invalid_grant", error_description: "Invalid redirect_uri" })
 
-  if (client_secret != app.clientSecret) return res.send("Incorrect client secret").status(401)
+  if (!await db.has(`tokens.${code}`) || (await db.get(`tokens.${code}`)).client_id !== client_id || new Date() > new Date((await db.get(`tokens.${code}`)).expires)) {
+    return res.status(400).json({ error: "invalid_grant", error_description: "Invalid or expired authorization code" })
+  }
 
-  if (!await db.has(`tokens.${token}`) || await db.get(`tokens.${token}`).client_id != client_id || new Date() > await db.get(`tokens.${token}`).expires) return res.send("Token not found").status(400)
+  const access_token = crypto.randomUUID().replaceAll("-", "")
+  const refresh_token = crypto.randomUUID().replaceAll("-", "")
+  
+  const tokenData = await db.get(`tokens.${code}`)
+  await db.set(`tokens.${access_token}`, tokenData)
+  await db.set(`tokens.${refresh_token}`, tokenData)
+  await db.delete(`tokens.${code}`)
 
   res.json({
-    access_token: token,
-    refresh_token: token,
+    access_token: access_token,
+    refresh_token: refresh_token,
     token_type: "Bearer",
-    expires_in: 10,
-    scrope: "openid profile"
+    expires_in: 300,
+    scope: "openid profile"
   })
 })
 
 app.get('/oauth2/profile', async (req, res) => {
   const auth = req.headers.authorization
-  if (!auth.includes("Bearer ")) return res.send("Not bearer authorization.").status(400)
-  const profile = await db.get(`tokens.${auth.replace("Bearer ", "")}`)
-  if (!profile) return res.send("Token expired or non-existant").status(401)
+  if (!auth || !auth.startsWith("Bearer ")) return res.status(401).json({ error: "invalid_token", error_description: "Invalid or missing Bearer token" })
+  const token = auth.replace("Bearer ", "")
+  const profile = await db.get(`tokens.${token}`)
+  if (!profile) return res.status(401).json({ error: "invalid_token", error_description: "Token expired or invalid" })
+  if (new Date() > new Date(profile.expires)) {
+    await db.delete(`tokens.${token}`)
+    return res.status(401).json({ error: "invalid_token", error_description: "Token expired" })
+  }
   delete profile.client_id
+  delete profile.expires
   res.json(profile)
 })
 
